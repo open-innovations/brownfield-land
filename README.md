@@ -8,12 +8,12 @@ Steps:
 3. Download each URL and reject 404 errors or content that isn't CSV/XLSX.
 4. Check if each URL is actually a CSV file (convert from XLSX if necessary)
 5. Sanitise each row of each URL (check if it looks sensible - headers, do coordinates look reasonable?) and save the following columns to `brownfield-sites.csv`:
-  1. `CoordinateReferenceSystem`,
-  2. `GeoX`,
-  3. `GeoY`,
-  4. `Hectares`,
-  5. `SiteNameAddress`
-  6. `OrganisationURI` - convert these to GSS codes (`LADCD`) using the OpenDataCommunities API e.g. https://opendatacommunities.org/resource.json?uri=http%3A%2F%2Fopendatacommunities.org%2Fid%2Fmetropolitan-district-council%2Fleeds
+   1. `CoordinateReferenceSystem`,
+   2. `GeoX`,
+   3. `GeoY`,
+   4. `Hectares`,
+   5. `SiteNameAddress`
+   6. `OrganisationURI` - convert these to GSS codes (`LADCD`) using the OpenDataCommunities API e.g. https://opendatacommunities.org/resource.json?uri=http%3A%2F%2Fopendatacommunities.org%2Fid%2Fmetropolitan-district-council%2Fleeds
 7. Load `brownfield-sites.csv` and convert coordinates from OSGB to lat/lon.
 9. Clip the whole dataset to each MSOA and find the sum of the `Hectares` for each. Save the MSOAs and total areas to `MSOAs.csv`.
 10. Make LA-specific GeoJSON files of points.
