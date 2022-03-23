@@ -28,7 +28,7 @@ $jsonstr =~ s/\t\t"",?\n//g;	# Remove missing features
 $jsonstr =~ s/\},\n\t\]/\}\n\t\]/g;	# Tidy up end
 
 # Sae the result
-open(FILE,">","brownfield-sites.geojson");
+open(FILE,">","data/brownfield-sites.geojson");
 print FILE $jsonstr;
 close(FILE);
 

@@ -12,9 +12,9 @@ use constant Y         => 1;
 use constant TWOPI    => 2*PI;
 
 
-$brownfieldfile = "brownfield-sites.geojson";
-$msoafile = "msoas-fixed.geojson";
-$ofile = "brownfield-areas.csv";
+$brownfieldfile = "data/brownfield-sites.geojson";
+$msoafile = "data/msoas-fixed.geojson";
+$ofile = "data/brownfield-areas.csv";
 
 if(!-e $brownfieldfile){
 	print "No GeoJSON with brownfield sites. You may wish to run getData.pl first.\n";
