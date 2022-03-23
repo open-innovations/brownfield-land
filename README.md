@@ -1,4 +1,4 @@
-# brownfield-land
+# Brownfield Land
 
 Getting brownfield land locations from scratch:
 
@@ -19,6 +19,7 @@ Getting brownfield land locations from scratch:
 
 After noticing that Digital Land had already done a lot of the hard work above here are is an alternate method:
 
-1. Use the Digital Land API e.g. https://www.digital-land.info/entity.geojson?dataset=brownfield-land&limit=500 (maximum of 500 results at a time) to get paged GeoJSON data.
-2. Combine all the downloaded files into one `brownfield-all.geojson`.
-3. Clip the whole dataset to each MSOA and find the sum of the `Hectares` for each. Save the MSOAs and total areas to `brownfield-area-by-msoa.csv`.
+1. Use the Digital Land API e.g. https://www.digital-land.info/entity.geojson?dataset=brownfield-land&limit=500 (maximum of 500 results at a time) to get paged GeoJSON data (although we could potentially just download the [single CSV file](https://digital-land-production-collection-dataset.s3.eu-west-2.amazonaws.com/brownfield-land-collection/dataset/brownfield-land.csv)).
+2. Combine all the downloaded files into one `brownfield-sites.geojson`.
+3. Calculate the MSOA (using `msoas-fixed.geojson`) for each brownfield site and find the sum of the `Hectares` value for each MSOA.
+4. Save the MSOAs and total areas to `brownfield-areas.csv`.
