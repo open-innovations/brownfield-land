@@ -1,12 +1,10 @@
 #!/usr/bin/perl
-# Process a Brownfield Sites CSV file working out the MSOA for each site
-# Version 1.0
+# Process a Brownfield Sites (GeoJSON) working out the MSOA for each site
+# Version 1.1
 
 use JSON::XS;
 use Data::Dumper;
-use Text::CSV;
 use Math::Trig;
-use Geo::Coordinates::OSGB qw(ll_to_grid grid_to_ll);
 
 use constant PI => 4 * atan2(1, 1);
 use constant X         => 0;
@@ -14,65 +12,62 @@ use constant Y         => 1;
 use constant TWOPI    => 2*PI;
 
 
-$csvfile = $ARGV[0]||"../brownfield-sites.csv";
-$geojson = "msoas-fixed.geojson";
-$ofile = "brownfield-sites.geojson";
-$msoafile = "brownfield-areas.csv";
+$brownfieldfile = "brownfield-sites.geojson";
+$msoafile = "msoas-fixed.geojson";
+$ofile = "brownfield-areas.csv";
 
+if(!-e $brownfieldfile){
+	print "No GeoJSON with brownfield sites. You may wish to run getData.pl first.\n";
+	exit;
+}
 
-@features = loadFeatures($geojson);
+# Load the MSOA features (this will calculate bounding boxes for them too)
+# We will use @msoafeatures in getMSOA() later
+@msoafeatures = loadFeatures($msoafile);
 
-#print getMSOA(53.7940,-1.5813)."\n";
-#print getMSOA(53.8350,-1.6437)."\n";
-#print getMSOA(51.46586,-3.16868)."\n";
-#print getMSOA(55,-3.16868)."\n";
+# Load in the brownfield land features
+@features = loadFeatures($brownfieldfile);
 
-%header;
-%msoas;
-my $csv = Text::CSV->new ({ binary => 1 });
-open my $fh,'<:encoding(utf8)',$csvfile;
-while (my $row = $csv->getline($fh)){
-	my @cols = @$row;
-	if($i == 0){
-		@head = @cols;
-		for($c = 0; $c < @head; $c++){
-			$header{$head[$c]} = $c;
-		}
+# Find out how many features there are
+$n = @features;
+print "Loaded $n brownfield land features.\n";
+
+# Loop over the features
+for($i = 0; $i < $n; $i++){
+	if($features[$i]{'geometry'}{'type'} ne "Point"){
+		print "ERROR for features $i\n";
 	}else{
-		$lat = $cols[$header{'GeoY'}];
-		$lon = $cols[$header{'GeoX'}];
+
+		# Get the area for this feature
+		$area = $features[$i]{'properties'}{'json'}{'hectares'};
+
+		# Get the name of this feature
+		$name = $features[$i]{'properties'}{'json'}{'site-address'};
+
+		# Get the latitude and longitude of the feature
+		$lon = $features[$i]{'geometry'}{'coordinates'}[0];
+		$lat = $features[$i]{'geometry'}{'coordinates'}[1];
 		
-		
-		if($cols[$header{'CoordinateReferenceSystem'}] eq "OSGB36"){
-			($lat,$lon) = grid_to_ll($lat,$lon);
-		}
-		$area = $cols[$header{'Hectares'}];
-		$name = $cols[$header{'SiteNameAddress'}];
-		$name =~ s/(^\"|\"$)//g;
-		$name =~ s/[\r\n]+/, /g;
+		# Work out the MSOA this point is in
+		# e.g. getMSOA(51.46586,-3.16868);
 		$msoa = getMSOA($lat,$lon);
+
+		# If we have an MSOA we add the area to the total for it
 		if($msoa){
+			# If we haven't already noted this MSOA we create a 0 value for it
 			if(!$msoas{$msoa}){ $msoas{$msoa} = 0; }
 			$msoas{$msoa} += $area;
+		}else{
+			print "No MSOA found for ($lat,$lon) - feature $i / $n\n";
 		}
-		$out .= ($out ? ",\n":"")."\t\t{ \"type\":\"Feature\",\"properties\":{\"name\":\"$name\",\"msoa11cd\":\"$msoa\",\"area\":$area},\"geometry\":{\"type\":\"Point\",\"coordinates\":[$lon,$lat] } }";
 	}
-	$i++;
+	
 }
-close($fh);
 
+# Save MSOA-binned output to a CSV file
 open(FILE,">",$ofile);
-print FILE "{\n";
-print FILE "\t\"type\":\"FeatureCollection\",\n";
-print FILE "\t\"features\":[\n";
-print FILE $out;
-print FILE "\t]\n";
-print FILE "}\n";
-close(FILE);
-
-
-open(FILE,">",$msoafile);
 print FILE "msoa,brownfield area\n";
+# Print the sorted MSOA values
 foreach $msoa (sort(keys(%msoas))){
 	print FILE "$msoa,$msoas{$msoa}\n";
 }
@@ -92,7 +87,7 @@ sub loadFeatures {
 	# Define a JSON loader
 	$coder = JSON::XS->new->utf8->canonical(1);
 
-
+	print "Reading $file\n";
 	open(FILE,$file);
 	@lines = <FILE>;
 	close(FILE);
@@ -115,16 +110,18 @@ sub loadFeatures {
 		$maxlon = -180;
 		if($features[$f]->{'geometry'}->{'type'} eq "Polygon"){
 			($minlat,$maxlat,$minlon,$maxlon) = getBBox($minlat,$maxlat,$minlon,$maxlon,@{$features[$f]->{'geometry'}->{'coordinates'}});
+			# Set the bounding box
+			$features[$f]->{'geometry'}{'bbox'} = {'lat'=>{'min'=>$minlat,'max'=>$maxlat},'lon'=>{'min'=>$minlon,'max'=>$maxlon}};
 		}elsif($features[$f]->{'geometry'}->{'type'} eq "MultiPolygon"){
 			$n = @{$features[$f]->{'geometry'}->{'coordinates'}};
 			for($p = 0; $p < $n; $p++){
 				($minlat,$maxlat,$minlon,$maxlon) = getBBox($minlat,$maxlat,$minlon,$maxlon,@{$features[$f]->{'geometry'}->{'coordinates'}[$p]});
 			}
+			# Set the bounding box
+			$features[$f]->{'geometry'}{'bbox'} = {'lat'=>{'min'=>$minlat,'max'=>$maxlat},'lon'=>{'min'=>$minlon,'max'=>$maxlon}};
 		}else{
-			print "ERROR: Unknown geometry type $features[$f]->{'geometry'}->{'type'}\n";
+			#print "ERROR: Unknown geometry type $features[$f]->{'geometry'}->{'type'}\n";
 		}
-		# Set the bounding box
-		$features[$f]->{'geometry'}{'bbox'} = {'lat'=>{'min'=>$minlat,'max'=>$maxlat},'lon'=>{'min'=>$minlon,'max'=>$maxlon}};
 	}
 
 	# Get the features
@@ -155,19 +152,19 @@ sub getMSOA {
 	my $msoa = "";
 	my ($f,$n,$ok,@gs);
 	
-	for($f = 0; $f < @features; $f++){
+	for($f = 0; $f < @msoafeatures; $f++){
 		@gs = "";
 		$ok = 0;
 		# If we are in the bounding box
-		if($lat >= $features[$f]->{'geometry'}{'bbox'}{'lat'}{'min'} && $lat <= $features[$f]->{'geometry'}{'bbox'}{'lat'}{'max'} && $lon >= $features[$f]->{'geometry'}{'bbox'}{'lon'}{'min'} && $lon <= $features[$f]->{'geometry'}{'bbox'}{'lon'}{'max'}){
-			if($features[$f]->{'geometry'}->{'type'} eq "Polygon"){
-				$ok = withinPolygon($lat,$lon,@{$features[$f]->{'geometry'}->{'coordinates'}});
+		if($lat >= $msoafeatures[$f]->{'geometry'}{'bbox'}{'lat'}{'min'} && $lat <= $msoafeatures[$f]->{'geometry'}{'bbox'}{'lat'}{'max'} && $lon >= $msoafeatures[$f]->{'geometry'}{'bbox'}{'lon'}{'min'} && $lon <= $msoafeatures[$f]->{'geometry'}{'bbox'}{'lon'}{'max'}){
+			if($msoafeatures[$f]->{'geometry'}->{'type'} eq "Polygon"){
+				$ok = withinPolygon($lat,$lon,@{$msoafeatures[$f]->{'geometry'}->{'coordinates'}});
 			}else{
-				$n = @{$features[$f]->{'geometry'}->{'coordinates'}};
-				$ok = withinMultiPolygon($lat,$lon,@{$features[$f]->{'geometry'}->{'coordinates'}});
+				$n = @{$msoafeatures[$f]->{'geometry'}->{'coordinates'}};
+				$ok = withinMultiPolygon($lat,$lon,@{$msoafeatures[$f]->{'geometry'}->{'coordinates'}});
 			}
 			if($ok){
-				return $features[$f]->{'properties'}->{'msoa11cd'};
+				return $msoafeatures[$f]->{'properties'}->{'msoa11cd'};
 			}
 		}
 	}

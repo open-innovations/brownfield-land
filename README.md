@@ -19,7 +19,6 @@ Getting brownfield land locations from scratch:
 
 After noticing that Digital Land had already done a lot of the hard work above here are is an alternate method:
 
-1. Use the Digital Land API e.g. https://www.digital-land.info/entity.geojson?dataset=brownfield-land&limit=500 (maximum of 500 results at a time) to get paged GeoJSON data
-2. Combine all the downloaded files into one
-3. Clip the whole dataset to each MSOA and find the sum of the `Hectares` for each. Save the MSOAs and total areas to `MSOAs.csv`.
-4. Make LA-specific GeoJSON files of points.
+1. Use the Digital Land API e.g. https://www.digital-land.info/entity.geojson?dataset=brownfield-land&limit=500 (maximum of 500 results at a time) to get paged GeoJSON data.
+2. Combine all the downloaded files into one `brownfield-all.geojson`.
+3. Clip the whole dataset to each MSOA and find the sum of the `Hectares` for each. Save the MSOAs and total areas to `brownfield-area-by-msoa.csv`.
